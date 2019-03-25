@@ -69,15 +69,7 @@ float pCurve(float x, float a, float b) {
 
 float generateHeight(uint2 id, float2 o) {
 	float2 v = 3 * id * (1.0f / heightMapRes) + o;
-	//float2 x = BumpTex.SampleLevel(samplerBumpTex, id * (1.0f / heightMapRes), 0).xy*0.2;
-	float a = fbm(v );
-
-	//float b = fbm(v + o) * fbm(a + fbm(v + time));
-
-	//float c = 1 - abs(2 * (pCurve(fbm(a + time * 0.2), 1.5, 0.25) - abs(2 * b - 1)) - 1);
-	////
-	//float d = fbm(v + o) * c;
-
+	float a = fbm(v);
 	return a;
 }
 

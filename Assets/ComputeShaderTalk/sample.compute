@@ -1,0 +1,14 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+// A kernel in this context can be seen as a program
+
+RWTexture2D<float4> Result; //expecting precision of 4 * 32 bits, 32 bits per color for example
+uint2 texRes;
+
+// The numthread attribute defines the structure of execution for a kernel
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    float2 uv = ((float2) id.xy) / texRes;
+    Result[id.xy] = float4(uv, 0, 1);
+}
