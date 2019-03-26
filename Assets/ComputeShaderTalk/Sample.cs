@@ -22,14 +22,12 @@ public class Sample : MonoBehaviour
     }
 #endif
 
-
+    [ContextMenu("Run Awake()")]
     private void Awake()
     {
         _sampleKernelID = shader.FindKernel("CSMain");
 
-        RenderTexture rTex = new RenderTexture(resolution.x, resolution.y, 0)
-        {   
-            graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UInt,
+        RenderTexture rTex = new RenderTexture(resolution.x, resolution.y, 0) {   
             enableRandomWrite = true
         };
         rTex.Create();
@@ -39,7 +37,6 @@ public class Sample : MonoBehaviour
         //        will not be writable.
         shader.SetTexture(_sampleKernelID, "Result", rTex);
         shader.SetInts("texRes", resolution.x, resolution.y);
-        
         shader.Dispatch(_sampleKernelID, resolution.x / NUMTHREADS_X, resolution.y / NUMTHREADS_Y, 1);
 
         someMaterial.mainTexture = rTex;

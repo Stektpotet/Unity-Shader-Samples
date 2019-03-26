@@ -1,0 +1,100 @@
+﻿#include "fbm.cginc"
+
+//========================================================================================
+#pragma kernel GenerateHeights // Generate heights into a buffer
+//========================================================================================
+
+RWStructuredBuffer<float> heightBuffer;
+uint terrainSize = 1;
+int2 ofsettingSeed = int2(0,0);
+
+float generateHeight_random(in uint2 id, in float2 offset) {
+	float2 uv = id * (1.0f / terrainSize);
+	float2 s = uv + offset;
+	return random(s);
+}
+
+float generateHeight_noise(in uint2 id, in float2 offset) {
+	float2 uv = id * (1.0f / terrainSize);
+	float2 s = uv + offset;
+	return noise(s);
+}
+
+float generateHeight_fbm(in uint2 id, in float2 offset) {
+	float2 uv = id * (1.0f / terrainSize);
+	float2 s = uv + offset;
+	return fbm(s);
+}
+
+// f := 1 - abs(1 - 2x)
+// g := f(f(x)) = 1 - abs(1 - 2 * (1 - abs(1 - 2x)))
+float generateHeight_creases_and_valleys(in uint2 id, in float2 offset) {
+	float2 uv = id * (1.0f / terrainSize);
+	float2 s = uv + offset;
+	return 1 - abs(1 - 2 * (1 - abs(1 - 2 * fbm(s))));
+}
+
+float generateHeight_creases_and_valleys_smoothed(in uint2 id, in float2 offset) {
+	float2 uv = id * (1.0f / terrainSize);
+	float2 s = uv + offset;
+	float2 smootherOffset = float2(143.233, 4233.577);
+	return noise(s + smootherOffset) * (1 - abs(1 - 2 * (1 - abs(1 - 2 * fbm(s)))));
+}
+
+float generateHeight_creases_and_valleys_fbm_smoothed(in uint2 id, in float2 offset) {
+	float2 uv = id * (1.0f / terrainSize);
+	float2 s = uv + offset;
+	float2 smootherOffset = float2(143.233, 4233.577);
+	return fbm(s + smootherOffset) * (1 - abs(1 - 2 * (1 - abs(1 - 2 * fbm(s)))));
+}
+
+//further changes can be applied, shaping functions might be 
+//worth looking into for additional control:
+//    https://thebookofshaders.com/05/
+
+[numthreads(16, 16, 1)]
+void GenerateHeights(uint3 id : SV_DispatchThreadID)
+{
+	heightBuffer[(id.y * terrainSize) + id.x] = generateHeight_creases_and_valleys_fbm_smoothed(id.xy, ofsettingSeed);
+}
+//========================================================================================
+
+
+
+
+//========================================================================================
+#pragma kernel GenerateHeightMap // Generate heights into a texture
+//========================================================================================
+// technically we don't need float4 here, though wee need to 
+// operate within unity's texture format specifications
+RWTexture2D<float4> heightMap; 
+
+[numthreads(16, 16, 1)]
+void GenerateHeightMap(uint3 id : SV_DispatchThreadID)
+{
+	heightMap[id.xy] = generateHeight_creases_and_valleys_smoothed(id.xy, ofsettingSeed);
+}
+//========================================================================================
+
+
+
+
+//========================================================================================
+#pragma kernel GenerateBumpMap // Generate normals into a texture
+//========================================================================================
+RWTexture2D<float3> bumpMap;
+
+[numthreads(16, 16, 1)]
+void GenerateBumpMap(uint3 id : SV_DispatchThreadID)
+{
+	// finding the normal using central differencing
+	float4 N = float4(
+		generateHeight_fbm(uint2(id.x + 0.01, id.y), ofsettingSeed),
+		generateHeight_fbm(uint2(id.x - 0.01, id.y), ofsettingSeed),
+		generateHeight_fbm(uint2(id.x, id.y + 0.01), ofsettingSeed),
+		generateHeight_fbm(uint2(id.x, id.y - 0.01), ofsettingSeed)
+		);
+	float3 nrm = float3(N.y - N.x + 0.02, N.z - N.w + 0.02, 0.02);
+	bumpMap[id.xy] = normalize(nrm);
+}
+//========================================================================================
